@@ -1,0 +1,115 @@
+---
+title: 'Taboo Transactions: Pilot Preprocess'
+author: "Dean Baltiansky"
+date: "2022-08-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+pilot_1_raw <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/pilot_1_raw.csv")
+
+pilot_2_raw <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/pilot_2_raw.csv")
+
+pilot_3_raw <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/pilot_3_raw.csv")
+```
+
+Indicate who passed attention checks
+
+```{r}
+df_pilot_1 <- pilot_1_raw %>% 
+  mutate(att_pass = ifelse(att_check == 8 |
+                             str_to_lower(att_check) == "eight",1,0))
+
+df_pilot_2 <- pilot_2_raw %>% 
+  mutate(att_pass = ifelse(att_check == 8 |
+                             str_to_lower(att_check) == "eight",1,0))
+
+df_pilot_3 <- pilot_3_raw %>% 
+  mutate(att_pass = ifelse(att_check == 8 |
+                             str_to_lower(att_check) == "eight",1,0))
+```
+
+Mean benefit scores
+
+```{r}
+df_pilot_1 <- df_pilot_1 %>% 
+  rowwise() %>% 
+  mutate(benefit_taboo_A = mean(c(Chemicals_Buyer,
+                                  Kidney_Buyer,
+                                  Doctor_Buyer)),
+         benefit_taboo_B = mean(c(Chemicals_Seller,
+                                  Kidney_Seller,
+                                  Doctor_Seller)),
+         benefit_nontaboo_A = mean(c(Furniture_Buyer,
+                                     Car_Buyer,
+                                     Concert_Buyer)),
+         benefit_nontaboo_B = mean(c(Furniture_Seller,
+                                     Car_Seller,
+                                     Concert_Seller))) %>% 
+  ungroup()
+
+df_pilot_2 <- df_pilot_2 %>% 
+  rowwise() %>% 
+  mutate(benefit_taboo_A = mean(c(Hunting_A,
+                                  Voting_A,
+                                  Publichumiliation_A,
+                                  Militaryduty_A,
+                                  intercourse_A)),
+         benefit_taboo_B = mean(c(Hunting_B,
+                                  Voting_B,
+                                  Publichumiliation_B,
+                                  Militaryduty_B,
+                                  intercourse_B)),
+         benefit_nontaboo_A = mean(c(Photographing_A,
+                                     Product_A,
+                                     Sing_A,
+                                     Workduty_A,
+                                     Foreignlanguage_A)),
+         benefit_nontaboo_B = mean(c(Photographing_B,
+                                     Product_B,
+                                     Sing_B,
+                                     Workduty_B,
+                                     Foreignlanguage_B))) %>% 
+  ungroup()
+
+df_pilot_3 <- df_pilot_3 %>% 
+  rowwise() %>% 
+  mutate(benefit_taboo_A = mean(c(Chemicals_A,
+                                  Kidney_A,
+                                  Doctor_A,
+                                  Sideeffects_A,
+                                  Tattoo_A,
+                                  Tower_A)),
+         benefit_taboo_B = mean(c(Chemicals_B,
+                                  Kidney_B,
+                                  Doctor_B,
+                                  Sideeffects_B,
+                                  Tattoo_B,
+                                  Tower_B)),
+         benefit_nontaboo_A = mean(c(Furniture_A,
+                                     Car_A,
+                                     Concert_A,
+                                     Bugs_A,
+                                     Sandwich_A,
+                                     Noise_A)),
+         benefit_nontaboo_B = mean(c(Furniture_B,
+                                     Car_B,
+                                     Concert_B,
+                                     Bugs_B,
+                                     Sandwich_B,
+                                     Noise_B))) %>% 
+  ungroup()
+```
+
+write csv's
+
+```{r}
+write.csv(df_pilot_1,"~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_pilot_1.csv",row.names = F)
+
+write.csv(df_pilot_2,"~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_pilot_2.csv",row.names = F)
+
+write.csv(df_pilot_3,"~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_pilot_3.csv",row.names = F)
+```
+
