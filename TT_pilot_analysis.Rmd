@@ -1,0 +1,653 @@
+---
+title: "Taboo Transactions"
+subtitle: "Pilot Studies Analysis"
+author: "Dean Baltiansky"
+date: "2022-08-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(apa)
+library(see)
+library(lme4)
+library(lmerTest)
+library(jtools)
+library(gridExtra)
+library(kableExtra)
+library(rstatix)
+library(apaTables)
+library(papaja)
+library(knitr)
+library(psych)
+library(PerformanceAnalytics)
+library(tidyverse)
+
+df_pilot_1 <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_pilot_1.csv")
+
+df_pilot_2 <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_pilot_2.csv")
+
+df_pilot_3 <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_pilot_3.csv")
+
+```
+
+# Retention
+
+```{r,echo=FALSE,results='asis',warning=FALSE,message=F}
+df_pilot_1 %>% 
+  mutate(Study = "p1") %>% 
+  select(Study,att_pass) %>% 
+  bind_rows(df_pilot_2 %>% 
+              mutate(Study = "p2") %>% 
+              select(Study,att_pass)) %>% 
+  bind_rows(df_pilot_3 %>% 
+              mutate(Study = "p3") %>% 
+              select(Study,att_pass)) %>% 
+  group_by(Study,att_pass) %>% 
+  summarise(N = n()) %>% 
+  ungroup() %>% 
+  mutate(att_pass = ifelse(att_pass == 0,"Failed_Check","Passed_Check")) %>% 
+  pivot_wider(names_from = att_pass,
+              values_from = N) %>% 
+  select(Study,Passed_Check,Failed_Check) %>% 
+  kableExtra::kable(booktabs = T)
+
+df_pilot_1_elg <- df_pilot_1 %>% 
+  filter(att_pass == 1)
+
+df_pilot_2_elg <- df_pilot_2 %>% 
+  filter(att_pass == 1)
+
+df_pilot_3_elg <- df_pilot_3 %>% 
+  filter(att_pass == 1)
+```
+
+# Taboo vs. Non-Taboo
+
+First, we took the mean score for all taboo transactions and the mean score for all non-taboo transactions per study per actor. So, we end up with four mean benefit scores per study: taboo person A, taboo person B, non-taboo person A, non-taboo person B.
+
+## Pilot Study 1
+
+```{r,fig.align='left',fig.dim=c(6,3),echo=F,message=F}
+df_pilot_1_elg %>% 
+  select(benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo")) %>% 
+  ggplot(aes(x = person,y = Benefit,color = type,fill = type)) +
+  scale_color_manual(values = c("#1C7EB5",
+                                "#203864")) +
+  scale_fill_manual(values = c("#1C7EB5",
+                                "#203864")) +
+  geom_violinhalf(position = position_nudge(0.15),
+                  #fill = "gray23",
+                  alpha = 0.4,
+                  size = 1) +
+  geom_jitter(alpha = 0.6,
+             size = 1,
+             position = position_jitter(0.15)) +
+  stat_summary(fun.data = "mean_cl_boot",
+               size = 1,
+               geom = "linerange",
+               color = "#080807",
+               position = position_dodge(width = 0.3)) +
+  stat_summary(fun = "mean",
+               geom = "point",
+               size = 3,
+               position = position_dodge(width = 0.3)) +
+  stat_summary(fun = "mean",
+               shape = 1,
+               geom = "point",
+               size = 3,
+               position = position_dodge(width = 0.3),
+               color = "black") +
+  scale_x_discrete(expand = c(0.2,0.2)) +
+  scale_y_continuous(breaks = seq(1,7,1)) +
+  expand_limits(x = 1) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(color = "grey66"),
+        axis.text.x = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12),
+        axis.text.y = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12),
+        axis.title.x = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12))
+```
+
+### Descriptives
+
+```{r,echo=FALSE,results='asis',warning=FALSE,message=F}
+df_pilot_1_elg %>% 
+  select(benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo")) %>% 
+  group_by(type,person) %>% 
+  summarise(M = round(mean(Benefit),2),
+            SD = round(sd(Benefit),2)) %>% 
+  ungroup() %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Repeated Measures ANOVA
+
+```{r,echo=FALSE,include=FALSE}
+formodel_p1 <- df_pilot_1_elg %>% 
+  select(PID,benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo"))
+```
+
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1 <- anova_test(
+  data = formodel_p1, dv = Benefit, wid = PID,
+  within = c(person,type)
+  )
+
+get_anova_table(m1) %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Post-hoc comparisons: Person 
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1a <- formodel_p1 %>%
+  group_by(person) %>%
+  anova_test(dv = Benefit, wid = PID, within = type) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m1a %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Post-hoc comparisons: Type of Transaction
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1b <- formodel_p1 %>%
+  group_by(type) %>%
+  anova_test(dv = Benefit, wid = PID, within = person) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m1b %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+## Pilot Study 2
+
+```{r,fig.align='left',fig.dim=c(6,3),echo=F,message=F}
+df_pilot_2_elg %>% 
+  select(benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo")) %>% 
+  ggplot(aes(x = person,y = Benefit,color = type,fill = type)) +
+  scale_color_manual(values = c("#1C7EB5",
+                                "#203864")) +
+  scale_fill_manual(values = c("#1C7EB5",
+                                "#203864")) +
+  geom_violinhalf(position = position_nudge(0.15),
+                  #fill = "gray23",
+                  alpha = 0.4,
+                  size = 1) +
+  geom_jitter(alpha = 0.6,
+             size = 1,
+             position = position_jitter(0.15)) +
+  stat_summary(fun.data = "mean_cl_boot",
+               size = 1,
+               geom = "linerange",
+               color = "#080807",
+               position = position_dodge(width = 0.3)) +
+  stat_summary(fun = "mean",
+               geom = "point",
+               size = 3,
+               position = position_dodge(width = 0.3)) +
+  stat_summary(fun = "mean",
+               shape = 1,
+               geom = "point",
+               size = 3,
+               position = position_dodge(width = 0.3),
+               color = "black") +
+  scale_x_discrete(expand = c(0.2,0.2)) +
+  scale_y_continuous(breaks = seq(1,7,1)) +
+  expand_limits(x = 1) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(color = "grey66"),
+        axis.text.x = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12),
+        axis.text.y = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12),
+        axis.title.x = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12))
+```
+
+### Descriptives
+
+```{r,echo=FALSE,results='asis',warning=FALSE,message=F}
+df_pilot_2_elg %>% 
+  select(benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo")) %>% 
+  group_by(type,person) %>% 
+  summarise(M = round(mean(Benefit),2),
+            SD = round(sd(Benefit),2)) %>% 
+  ungroup() %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Repeated Measures ANOVA
+
+```{r,echo=FALSE,include=FALSE}
+formodel_p2 <- df_pilot_2_elg %>% 
+  select(PID,benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo"))
+```
+
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m2 <- anova_test(
+  data = formodel_p2, dv = Benefit, wid = PID,
+  within = c(person,type)
+  )
+
+get_anova_table(m2) %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Post-hoc comparisons: Person 
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m2a <- formodel_p2 %>%
+  group_by(person) %>%
+  anova_test(dv = Benefit, wid = PID, within = type) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m2a %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Post-hoc comparisons: Type of Transaction
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m2b <- formodel_p2 %>%
+  group_by(type) %>%
+  anova_test(dv = Benefit, wid = PID, within = person) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m2b %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+## Pilot Study 3
+
+```{r,fig.align='left',fig.dim=c(6,3),echo=F,message=F}
+df_pilot_3_elg %>% 
+  select(benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo")) %>% 
+  ggplot(aes(x = person,y = Benefit,color = type,fill = type)) +
+  scale_color_manual(values = c("#1C7EB5",
+                                "#203864")) +
+  scale_fill_manual(values = c("#1C7EB5",
+                                "#203864")) +
+  geom_violinhalf(position = position_nudge(0.15),
+                  #fill = "gray23",
+                  alpha = 0.4,
+                  size = 1) +
+  geom_jitter(alpha = 0.6,
+             size = 1,
+             position = position_jitter(0.15)) +
+  stat_summary(fun.data = "mean_cl_boot",
+               size = 1,
+               geom = "linerange",
+               color = "#080807",
+               position = position_dodge(width = 0.3)) +
+  stat_summary(fun = "mean",
+               geom = "point",
+               size = 3,
+               position = position_dodge(width = 0.3)) +
+  stat_summary(fun = "mean",
+               shape = 1,
+               geom = "point",
+               size = 3,
+               position = position_dodge(width = 0.3),
+               color = "black") +
+  scale_x_discrete(expand = c(0.2,0.2)) +
+  scale_y_continuous(breaks = seq(1,7,1)) +
+  expand_limits(x = 1) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(color = "grey66"),
+        axis.text.x = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12),
+        axis.text.y = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12),
+        axis.title.x = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(color = "black",
+                                   face = "bold",
+                                   size = 12))
+```
+
+### Descriptives
+
+```{r,echo=FALSE,results='asis',warning=FALSE,message=F}
+df_pilot_3_elg %>% 
+  select(benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo")) %>% 
+  group_by(type,person) %>% 
+  summarise(M = round(mean(Benefit),2),
+            SD = round(sd(Benefit),2)) %>% 
+  ungroup() %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Repeated Measures ANOVA
+
+```{r,echo=FALSE,include=FALSE}
+formodel_p3 <- df_pilot_3_elg %>% 
+  select(PID,benefit_taboo_A:benefit_nontaboo_B) %>%
+  pivot_longer(benefit_taboo_A:benefit_nontaboo_B,
+               names_to = "Names",
+               values_to = "Benefit") %>% 
+  separate(Names,into = c("temp","type","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","Person A","Person B"),
+         type = ifelse(type == "taboo","Taboo","Non-Taboo"))
+```
+
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m3 <- anova_test(
+  data = formodel_p3, dv = Benefit, wid = PID,
+  within = c(person,type)
+  )
+
+get_anova_table(m3) %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Post-hoc comparisons: Person 
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m3a <- formodel_p3 %>%
+  group_by(person) %>%
+  anova_test(dv = Benefit, wid = PID, within = type) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m3a %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+### Post-hoc comparisons: Type of Transaction
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m3b <- formodel_p3 %>%
+  group_by(type) %>%
+  anova_test(dv = Benefit, wid = PID, within = person) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m3b %>% 
+  kableExtra::kable(booktabs = T)
+```
+
+# Item-by-Item Descriptives
+
+## Taboo Transactions
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_p1 <- df_pilot_1_elg %>% 
+  select(PID:Doctor_Seller) %>% 
+  rename_at(vars(ends_with("Buyer")),function(x){str_replace(x,"Buyer","A")}) %>% 
+  rename_at(vars(ends_with("Seller")),function(x){str_replace(x,"Seller","B")}) %>% 
+  pivot_longer(-PID,
+               names_to = "names",
+               values_to = "benefit") %>% 
+  separate(names,into = c("Transaction","Person"),sep = "_") %>% 
+  mutate(Type = ifelse(Transaction == "Chemicals" |
+                         Transaction == "Kidney" |
+                         Transaction == "Doctor","Taboo","NonTaboo"),
+         Pair = ifelse(Transaction == "Chemicals" |
+                         Transaction == "Furniture",1,
+                       ifelse(Transaction == "Car" |
+                                Transaction == "Kidney",2,
+                              ifelse(Transaction == "Doctor" |
+                                       Transaction == "Concert",3,NA)))) %>% 
+  pivot_wider(names_from = Person,
+              values_from = benefit) %>% 
+  pivot_wider(names_from = Type,
+              values_from = Transaction) %>% 
+  mutate(Taboo_A = ifelse(!is.na(Taboo),A,NA),
+         Taboo_B = ifelse(!is.na(Taboo),B,NA),
+         NonTaboo_A = ifelse(!is.na(NonTaboo),A,NA),
+         NonTaboo_B = ifelse(!is.na(NonTaboo),B,NA)) %>% 
+  group_by(PID,Pair) %>% 
+  mutate(Taboo_lag = lag(Taboo),
+         NonTaboo_lag = lag(NonTaboo),
+         Taboo_A_lag = lag(Taboo_A),
+         Taboo_B_lag = lag(Taboo_B),
+         NonTaboo_A_lag = lag(NonTaboo_A),
+         NonTaboo_B_lag = lag(NonTaboo_B)) %>% 
+  ungroup() %>% 
+  mutate(Taboo = ifelse(is.na(Taboo),Taboo_lag,Taboo),
+         NonTaboo = ifelse(is.na(NonTaboo),NonTaboo_lag,NonTaboo),
+         Taboo_A = ifelse(is.na(Taboo_A),Taboo_A_lag,Taboo_A),
+         Taboo_B = ifelse(is.na(Taboo_B),Taboo_B_lag,Taboo_B),
+         NonTaboo_A = ifelse(is.na(NonTaboo_A),NonTaboo_A_lag,NonTaboo_A),
+         NonTaboo_B = ifelse(is.na(NonTaboo_B),NonTaboo_B_lag,NonTaboo_B)) %>% 
+  select(PID,Pair,Taboo:NonTaboo_B) %>% 
+  filter(!is.na(NonTaboo)) %>% 
+  filter(!is.na(Taboo)) %>% 
+  select(-c(PID,Pair)) %>% 
+  mutate(Study = "p1")
+
+df_p2 <- df_pilot_2_elg %>% 
+  select(PID:Foreignlanguage_B) %>% 
+  pivot_longer(-PID,
+               names_to = "names",
+               values_to = "benefit") %>% 
+  separate(names,into = c("Transaction","Person"),sep = "_") %>% 
+  mutate(Type = ifelse(Transaction == "Hunting" |
+                         Transaction == "Voting" |
+                         Transaction == "Publichumiliation" |
+                         Transaction == "Militaryduty" |
+                         Transaction == "intercourse","Taboo","NonTaboo"),
+         Pair = ifelse(Transaction == "Hunting" |
+                         Transaction == "Photographing",1,
+                       ifelse(Transaction == "Voting" |
+                                Transaction == "Product",2,
+                              ifelse(Transaction == "Publichumiliation" |
+                                       Transaction == "Sing",3,
+                                     ifelse(Transaction == "Militaryduty" |
+                                              Transaction == "Workduty",4,
+                                            ifelse(Transaction == "intercourse" |
+                                                     Transaction == "Foreignlanguage",5,NA)))))) %>% 
+  pivot_wider(names_from = Person,
+              values_from = benefit) %>% 
+  pivot_wider(names_from = Type,
+              values_from = Transaction) %>% 
+  mutate(Taboo_A = ifelse(!is.na(Taboo),A,NA),
+         Taboo_B = ifelse(!is.na(Taboo),B,NA),
+         NonTaboo_A = ifelse(!is.na(NonTaboo),A,NA),
+         NonTaboo_B = ifelse(!is.na(NonTaboo),B,NA)) %>% 
+  group_by(PID,Pair) %>% 
+  mutate(Taboo_lag = lag(Taboo),
+         NonTaboo_lag = lag(NonTaboo),
+         Taboo_A_lag = lag(Taboo_A),
+         Taboo_B_lag = lag(Taboo_B),
+         NonTaboo_A_lag = lag(NonTaboo_A),
+         NonTaboo_B_lag = lag(NonTaboo_B)) %>% 
+  ungroup() %>% 
+  mutate(Taboo = ifelse(is.na(Taboo),Taboo_lag,Taboo),
+         NonTaboo = ifelse(is.na(NonTaboo),NonTaboo_lag,NonTaboo),
+         Taboo_A = ifelse(is.na(Taboo_A),Taboo_A_lag,Taboo_A),
+         Taboo_B = ifelse(is.na(Taboo_B),Taboo_B_lag,Taboo_B),
+         NonTaboo_A = ifelse(is.na(NonTaboo_A),NonTaboo_A_lag,NonTaboo_A),
+         NonTaboo_B = ifelse(is.na(NonTaboo_B),NonTaboo_B_lag,NonTaboo_B)) %>% 
+  select(PID,Pair,Taboo:NonTaboo_B) %>% 
+  filter(!is.na(NonTaboo)) %>% 
+  filter(!is.na(Taboo)) %>% 
+  select(-c(PID,Pair)) %>% 
+  mutate(Study = "p2")
+
+df_p3 <- df_pilot_3_elg %>% 
+  select(PID:Noise_B) %>% 
+  pivot_longer(-PID,
+               names_to = "names",
+               values_to = "benefit") %>% 
+  separate(names,into = c("Transaction","Person"),sep = "_") %>% 
+  mutate(Type = ifelse(Transaction == "Chemicals" |
+                         Transaction == "Kidney" |
+                         Transaction == "Doctor" |
+                         Transaction == "Sideeffects" |
+                         Transaction == "Tattoo" |
+                         Transaction == "Tower","Taboo","NonTaboo"),
+         Pair = ifelse(Transaction == "Chemicals" |
+                         Transaction == "Furniture",1,
+                       ifelse(Transaction == "Car" |
+                                Transaction == "Kidney",2,
+                              ifelse(Transaction == "Concert" |
+                                       Transaction == "Doctor",3,
+                                     ifelse(Transaction == "Sideeffects" |
+                                              Transaction == "Bugs",4,
+                                            ifelse(Transaction == "Tattoo" |
+                                                     Transaction == "Sandwich",5,
+                                                   ifelse(Transaction == "Tower" |
+                                                            Transaction == "Noise",6,NA))))))) %>% 
+  pivot_wider(names_from = Person,
+              values_from = benefit) %>% 
+  pivot_wider(names_from = Type,
+              values_from = Transaction) %>% 
+  mutate(Taboo_A = ifelse(!is.na(Taboo),A,NA),
+         Taboo_B = ifelse(!is.na(Taboo),B,NA),
+         NonTaboo_A = ifelse(!is.na(NonTaboo),A,NA),
+         NonTaboo_B = ifelse(!is.na(NonTaboo),B,NA)) %>% 
+  group_by(PID,Pair) %>% 
+  mutate(Taboo_lag = lag(Taboo),
+         NonTaboo_lag = lag(NonTaboo),
+         Taboo_A_lag = lag(Taboo_A),
+         Taboo_B_lag = lag(Taboo_B),
+         NonTaboo_A_lag = lag(NonTaboo_A),
+         NonTaboo_B_lag = lag(NonTaboo_B)) %>% 
+  ungroup() %>% 
+  mutate(Taboo = ifelse(is.na(Taboo),Taboo_lag,Taboo),
+         NonTaboo = ifelse(is.na(NonTaboo),NonTaboo_lag,NonTaboo),
+         Taboo_A = ifelse(is.na(Taboo_A),Taboo_A_lag,Taboo_A),
+         Taboo_B = ifelse(is.na(Taboo_B),Taboo_B_lag,Taboo_B),
+         NonTaboo_A = ifelse(is.na(NonTaboo_A),NonTaboo_A_lag,NonTaboo_A),
+         NonTaboo_B = ifelse(is.na(NonTaboo_B),NonTaboo_B_lag,NonTaboo_B)) %>% 
+  select(PID,Pair,Taboo:NonTaboo_B) %>% 
+  filter(!is.na(NonTaboo)) %>% 
+  filter(!is.na(Taboo)) %>% 
+  select(-c(PID,Pair)) %>% 
+  mutate(Study = "p3")
+
+df_taboo_summary <- df_p1 %>% 
+  bind_rows(df_p2) %>% 
+  bind_rows(df_p3) %>% 
+  group_by(Study,Taboo,NonTaboo) %>% 
+  summarise(Taboo_A_m = round(mean(Taboo_A),2),
+            Taboo_A_sd = round(sd(Taboo_A),2),
+            Taboo_B_m = round(mean(Taboo_B),2),
+            Taboo_B_sd = round(sd(Taboo_B),2),
+            NonTaboo_A_m = round(mean(NonTaboo_A),2),
+            NonTaboo_A_sd = round(sd(NonTaboo_A),2),
+            NonTaboo_B_m = round(mean(NonTaboo_B),2),
+            NonTaboo_B_sd = round(sd(NonTaboo_B),2)) %>% 
+  ungroup() %>% 
+  select(Study,Taboo,Taboo_A_m:Taboo_B_sd) %>% 
+  rename(Scenario = Taboo,
+         "M" = Taboo_A_m,
+         "SD" = Taboo_A_sd,
+         "M " = Taboo_B_m,
+         "SD " = Taboo_B_sd)
+
+df_nontaboo_summary <- df_p1 %>% 
+  bind_rows(df_p2) %>% 
+  bind_rows(df_p3) %>% 
+  group_by(Study,Taboo,NonTaboo) %>% 
+  summarise(Taboo_A_m = round(mean(Taboo_A),2),
+            Taboo_A_sd = round(sd(Taboo_A),2),
+            Taboo_B_m = round(mean(Taboo_B),2),
+            Taboo_B_sd = round(sd(Taboo_B),2),
+            NonTaboo_A_m = round(mean(NonTaboo_A),2),
+            NonTaboo_A_sd = round(sd(NonTaboo_A),2),
+            NonTaboo_B_m = round(mean(NonTaboo_B),2),
+            NonTaboo_B_sd = round(sd(NonTaboo_B),2)) %>% 
+  ungroup() %>% 
+  select(Study,NonTaboo,NonTaboo_A_m:NonTaboo_B_sd) %>% 
+  rename(Scenario = NonTaboo,
+         "M" = NonTaboo_A_m,
+         "SD" = NonTaboo_A_sd,
+         "M " = NonTaboo_B_m,
+         "SD " = NonTaboo_B_sd)
+
+df_taboo_summary %>% 
+  kbl(booktabs = T) %>% 
+  add_header_above(c(" "," ","Person A" = 2,"Person B" = 2))
+
+```
+
+## Non-Taboo Transactions
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_nontaboo_summary %>% 
+  kbl(booktabs = T) %>% 
+  add_header_above(c(" "," ","Person A" = 2,"Person B" = 2))
+```
+
