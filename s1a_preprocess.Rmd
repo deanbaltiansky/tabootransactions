@@ -1,0 +1,148 @@
+---
+title: "tabooTransactions_s1a_preprocess"
+author: "Dean"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#load packages
+library(tidyverse)
+
+#read in de-identified csv file
+df_s1a_raw <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s1a_raw.csv")
+```
+
+remove ineligible participants
+
+```{r}
+#keep only those who finished
+df_s1a <- df_s1a_raw %>% 
+  filter(Finished == 1) %>% 
+  filter(Progress == 100)
+```
+
+Put NA's where necessary
+
+```{r}
+df_s1a <- df_s1a %>% 
+  mutate_at(vars(ideo_con:ideo_prog),function(x){ifelse(x == -99,NA,x)}) %>% 
+  mutate(race = ifelse(race == "Click to write Choice 7",NA,race),
+         income = ifelse(income == "Prefer not to answer",NA,income))
+```
+
+define income and edu as factors
+
+```{r}
+df_s1a <- df_s1a %>% 
+  mutate(income = factor(income,c("$0-$20,000",
+                                  "$20,001-$40,000",
+                                  "$40,001-$60,000",
+                                  "$60,001-$80,000",
+                                  "$80,001-$100,000",
+                                  "$100,001-$120,000",
+                                  "$120,001-$140,000",
+                                  "$140,001-$160,000",
+                                  "$160,001-$180,000",
+                                  "$180,001-$200,000",
+                                  "Over $200,000")),
+         edu = factor(edu,c("GED",
+                            "2yearColl",
+                            "4yearColl",
+                            "MA",
+                            "PHD")))
+```
+
+when more than one race -> change to multiracial
+
+```{r}
+df_s1a <- df_s1a %>% 
+  separate(race,into = c("race1","race2","race3","race4"),sep = ",") %>% 
+  mutate(race = ifelse(is.na(race2),race1,"multiracial")) %>% 
+  select(-c(race1,race2,race3,race4))
+```
+
+create person benefit scores
+
+```{r}
+df_s1a <- df_s1a %>% 
+  rowwise() %>% 
+  mutate(taboo_benefit_A = mean(c(phone_benefit_A,
+                                  kdny_benefit_A,
+                                  chem_benefit_A,
+                                  prod_benefit_A,
+                                  appt_benefit_A)),
+         nontaboo_benefit_A = mean(c(cncrt_benefit_A,
+                                     bugs_benefit_A,
+                                     furn_benefit_A,
+                                     car_benefit_A,
+                                     noisy_benefit_A)),
+         taboo_benefit_B = mean(c(phone_benefit_B,
+                                  kdny_benefit_B,
+                                  chem_benefit_B,
+                                  prod_benefit_B,
+                                  appt_benefit_B)),
+         nontaboo_benefit_B = mean(c(cncrt_benefit_B,
+                                     bugs_benefit_B,
+                                     furn_benefit_B,
+                                     car_benefit_B,
+                                     noisy_benefit_B))) %>% 
+  ungroup() %>% 
+  mutate(benefit_A = ifelse(cond == 1,taboo_benefit_A,
+                            ifelse(cond == 2,nontaboo_benefit_A,NA)),
+         benefit_B = ifelse(cond == 1,taboo_benefit_B,
+                            ifelse(cond == 2,nontaboo_benefit_B,NA)))
+```
+
+create mean equality score
+
+```{r}
+df_s1a <- df_s1a %>% 
+  mutate(equal1 = ifelse(cond == 1,phone_equal,noisy_equal),
+         equal2 = ifelse(cond == 1,kdny_equal,car_equal),
+         equal3 = ifelse(cond == 1,chem_equal,furn_equal),
+         equal4 = ifelse(cond == 1,prod_equal,bugs_equal),
+         equal5 = ifelse(cond == 1,appt_equal,cncrt_equal)) %>% 
+  rowwise() %>% 
+  mutate(equal_mean = mean(c(equal1,
+                             equal2,
+                             equal3,
+                             equal4,
+                             equal5))) %>% 
+  ungroup()
+```
+
+clean order vars
+
+```{r}
+df_s1a <- df_s1a %>% 
+  mutate(orderShown = ifelse(FL_68_DO == "FL_79|FL_78" |
+                               FL_72_DO == "FL_81|FL_80","benefitFirst",
+                             ifelse(FL_68_DO == "FL_78|FL_79" |
+                                      FL_72_DO == "FL_80|FL_81","equalFirst",NA)))
+```
+
+
+take only relevant vars and order in a way that makes sense
+
+```{r}
+df_s1a <- df_s1a %>% 
+  select(PID,
+         cond,
+         benefit_A,
+         benefit_B,
+         equal_mean,
+         phone_equal:noisy_benefit_B,
+         orderShown,
+         ideo_con:ideo_prog,
+         SES,
+         gender:edu,
+         race,
+         feedback)
+```
+
+write csv
+
+```{r}
+write.csv(df_s1a,"~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s1a.csv",row.names = F)
+```
+

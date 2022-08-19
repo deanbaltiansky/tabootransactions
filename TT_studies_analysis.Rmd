@@ -1,0 +1,490 @@
+---
+title: 'Taboo Transactions'
+subtitle: 'Analysis'
+author: "Dean Baltiansky"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+#load packages
+library(lmerTest)
+library(lsr)
+library(psych)
+library(interactions)
+library(jtools)
+library(gridExtra)
+library(see)
+library(kableExtra)
+library(rstatix)
+library(apa)
+library(apaTables)
+library(papaja)
+library(extrafont)
+loadfonts()
+library(tidyverse)
+
+#read in preprocessed data frames
+df_s1a <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s1a.csv")
+df_s1b <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s1b.csv")
+
+```
+
+# Demographics
+
+## Study 1A
+
+### N
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1a %>% 
+  summarise(N = n()) %>% 
+  kbl(booktabs = T)
+```
+
+### Gender
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1a %>% 
+  group_by(gender) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  mutate(gender = replace_na(gender,"other")) %>% 
+  kbl(booktabs = T)
+```
+
+### Race
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1a %>% 
+  group_by(race) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  mutate(race = replace_na(race,"other")) %>% 
+  kbl(booktabs = T)
+```
+
+### Education
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1a %>% 
+  mutate(edu = factor(edu,c("GED",
+                            "2yearColl",
+                            "4yearColl",
+                            "MA",
+                            "PHD"))) %>% 
+  group_by(edu) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  filter(!is.na(edu)) %>% 
+  kbl(booktabs = T)
+```
+
+### Income
+
+```{r,fig.align='left',fig.dim=c(5,2),echo=F,message=F}
+df_s1a %>% 
+  mutate(income = factor(income,c("$0-$20,000",
+                                  "$20,001-$40,000",
+                                  "$40,001-$60,000",
+                                  "$60,001-$80,000",
+                                  "$80,001-$100,000",
+                                  "$100,001-$120,000",
+                                  "$120,001-$140,000",
+                                  "$140,001-$160,000",
+                                  "$160,001-$180,000",
+                                  "$180,001-$200,000",
+                                  "Over $200,000"))) %>% 
+  filter(!is.na(income)) %>% 
+  ggplot(aes(x = income)) +
+  geom_bar() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(color = "grey66"),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(color = "black",
+                                   face = "bold",
+                                   angle = 320),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+```
+
+## Study 1B
+
+### N
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1b %>% 
+  summarise(N = n()) %>% 
+  kbl(booktabs = T)
+```
+
+### Gender
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1b %>% 
+  group_by(gender) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  mutate(gender = replace_na(gender,"other")) %>% 
+  kbl(booktabs = T)
+```
+
+### Race
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1b %>% 
+  group_by(race) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  mutate(race = replace_na(race,"other")) %>% 
+  kbl(booktabs = T)
+```
+
+### Age
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1b %>% 
+  summarise(age_m = mean(age),
+            age_sd = sd(age)) %>% 
+  kbl(booktabs = T)
+```
+
+
+### Education
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1b %>% 
+  mutate(edu = factor(edu,c("GED",
+                            "2yearColl",
+                            "4yearColl",
+                            "MA",
+                            "PHD"))) %>% 
+  group_by(edu) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  filter(!is.na(edu)) %>% 
+  kbl(booktabs = T)
+```
+
+### Income
+
+```{r,fig.align='left',fig.dim=c(5,2),echo=F,message=F}
+df_s1b %>% 
+  mutate(income = factor(income,c("$0-$20,000",
+                                  "$20,001-$40,000",
+                                  "$40,001-$60,000",
+                                  "$60,001-$80,000",
+                                  "$80,001-$100,000",
+                                  "$100,001-$120,000",
+                                  "$120,001-$140,000",
+                                  "$140,001-$160,000",
+                                  "$160,001-$180,000",
+                                  "$180,001-$200,000",
+                                  "Over $200,000"))) %>% 
+  filter(!is.na(income)) %>% 
+  ggplot(aes(x = income)) +
+  geom_bar() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(color = "grey66"),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(color = "black",
+                                   face = "bold",
+                                   angle = 320),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+```
+
+# Cronbach's alpha
+
+## Study 1A
+
+### Buyers
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_alpha <- df_s1a %>% 
+  select(PID,cond,ends_with("_benefit_A")) %>% 
+  mutate(benefit_A_1 = ifelse(cond == 1,phone_benefit_A,noisy_benefit_A),
+         benefit_A_2 = ifelse(cond == 1,kdny_benefit_A,car_benefit_A),
+         benefit_A_3 = ifelse(cond == 1,chem_benefit_A,furn_benefit_A),
+         benefit_A_4 = ifelse(cond == 1,prod_benefit_A,bugs_benefit_A),
+         benefit_A_5 = ifelse(cond == 1,appt_benefit_A,cncrt_benefit_A)) %>% 
+  select(benefit_A_1:benefit_A_5) %>% 
+  psych::alpha()
+
+for_alpha$total %>% 
+  kbl(booktabs = T)
+```
+
+### Sellers
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_alpha <- df_s1a %>% 
+  select(PID,cond,ends_with("_benefit_B")) %>% 
+  mutate(benefit_B_1 = ifelse(cond == 1,phone_benefit_B,noisy_benefit_B),
+         benefit_B_2 = ifelse(cond == 1,kdny_benefit_B,car_benefit_B),
+         benefit_B_3 = ifelse(cond == 1,chem_benefit_B,furn_benefit_B),
+         benefit_B_4 = ifelse(cond == 1,prod_benefit_B,bugs_benefit_B),
+         benefit_B_5 = ifelse(cond == 1,appt_benefit_B,cncrt_benefit_B)) %>% 
+  select(benefit_B_1:benefit_B_5) %>% 
+  psych::alpha()
+
+for_alpha$total %>% 
+  kbl(booktabs = T)
+```
+
+## Study 1B
+
+### Buyers
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_alpha <- df_s1b %>% 
+  select(PID,cond,ends_with("_benefit_A")) %>% 
+  mutate(benefit_A_1 = ifelse(cond == 1,phone_benefit_A,noisy_benefit_A),
+         benefit_A_2 = ifelse(cond == 1,kdny_benefit_A,car_benefit_A),
+         benefit_A_3 = ifelse(cond == 1,chem_benefit_A,furn_benefit_A),
+         benefit_A_4 = ifelse(cond == 1,prod_benefit_A,bugs_benefit_A),
+         benefit_A_5 = ifelse(cond == 1,appt_benefit_A,cncrt_benefit_A)) %>% 
+  select(benefit_A_1:benefit_A_5) %>% 
+  psych::alpha()
+
+for_alpha$total %>% 
+  kbl(booktabs = T)
+```
+
+### Sellers
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_alpha <- df_s1b %>% 
+  select(PID,cond,ends_with("_benefit_B")) %>% 
+  mutate(benefit_B_1 = ifelse(cond == 1,phone_benefit_B,noisy_benefit_B),
+         benefit_B_2 = ifelse(cond == 1,kdny_benefit_B,car_benefit_B),
+         benefit_B_3 = ifelse(cond == 1,chem_benefit_B,furn_benefit_B),
+         benefit_B_4 = ifelse(cond == 1,prod_benefit_B,bugs_benefit_B),
+         benefit_B_5 = ifelse(cond == 1,appt_benefit_B,cncrt_benefit_B)) %>% 
+  select(benefit_B_1:benefit_B_5) %>% 
+  psych::alpha()
+
+for_alpha$total %>% 
+  kbl(booktabs = T)
+```
+
+# Analysis
+
+## Study 1A
+
+### Descriptives
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1a %>% 
+  mutate(cond = ifelse(cond == 1,"Taboo Transactioins","Standard Transactions")) %>% 
+  group_by(cond) %>% 
+  summarise(benefit_A_m = mean(benefit_A),
+            benefit_A_sd = sd(benefit_A),
+            benefit_B_m = mean(benefit_B),
+            benefit_B_sd = sd(benefit_B)) %>% 
+  kbl(booktabs = T)
+```
+### Two-way Repeated Measures ANOVA
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_m1 <- df_s1a %>% 
+  select(PID:benefit_B) %>% 
+  mutate(cond = ifelse(cond == 1,"taboo","standard")) %>% 
+  rename(buyer = benefit_A,
+         seller = benefit_B) %>% 
+  pivot_longer(-c(PID,cond),
+               names_to = "person",
+               values_to = "benefit")
+
+m1 <- anova_test(
+  data = for_m1, dv = benefit, wid = PID,
+  within = person,
+  between = cond
+  )
+
+get_anova_table(m1) %>% 
+  kbl(booktabs = T)
+```
+
+### Bonferrone-corrected post-hoc comparisons: Party
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1a <- for_m1 %>%
+  group_by(person) %>%
+  anova_test(dv = benefit, wid = PID, between = cond) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m1a %>% 
+  kbl(booktabs = T)
+```
+
+### Bonferrone-corrected post-hoc comparisons: Condition
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1b <- for_m1 %>%
+  group_by(cond) %>%
+  anova_test(dv = benefit, wid = PID, within = person) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m1b %>% 
+  kbl(booktabs = T)
+```
+
+### One-sample t-tests
+
+**Buyers in Taboo Condition:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_t <- for_m1 %>% 
+  filter(person == "buyer") %>% 
+  filter(cond == "taboo")
+
+t_apa(apa::t_test(for_t$benefit,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+**Buyers in Standard Condition:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_t <- for_m1 %>% 
+  filter(person == "buyer") %>% 
+  filter(cond == "standard")
+
+t_apa(apa::t_test(for_t$benefit,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+**Sellers in Taboo Condition:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_t <- for_m1 %>% 
+  filter(person == "seller") %>% 
+  filter(cond == "taboo")
+
+t_apa(apa::t_test(for_t$benefit,alternative = "less",mu = 0),
+      format = "rmarkdown")
+```
+
+**Sellers in Standard Condition:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_t <- for_m1 %>% 
+  filter(person == "seller") %>% 
+  filter(cond == "standard")
+
+t_apa(apa::t_test(for_t$benefit,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+## Study 1B
+
+### Descriptives
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s1b %>% 
+  mutate(cond = ifelse(cond == 1,"Taboo Transactioins","Standard Transactions")) %>% 
+  group_by(cond) %>% 
+  summarise(benefit_A_m = mean(benefit_A),
+            benefit_A_sd = sd(benefit_A),
+            benefit_B_m = mean(benefit_B),
+            benefit_B_sd = sd(benefit_B)) %>% 
+  kbl(booktabs = T)
+```
+### Two-way Repeated Measures ANOVA
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_m1 <- df_s1b %>% 
+  select(PID:benefit_B) %>% 
+  mutate(cond = ifelse(cond == 1,"taboo","standard")) %>% 
+  rename(buyer = benefit_A,
+         seller = benefit_B) %>% 
+  pivot_longer(-c(PID,cond),
+               names_to = "person",
+               values_to = "benefit")
+
+m1 <- anova_test(
+  data = for_m1, dv = benefit, wid = PID,
+  within = person,
+  between = cond
+  )
+
+get_anova_table(m1) %>% 
+  kbl(booktabs = T)
+```
+
+### Bonferrone-corrected post-hoc comparisons: Party
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1a <- for_m1 %>%
+  group_by(person) %>%
+  anova_test(dv = benefit, wid = PID, between = cond) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m1a %>% 
+  kbl(booktabs = T)
+```
+
+### Bonferrone-corrected post-hoc comparisons: Condition
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1b <- for_m1 %>%
+  group_by(cond) %>%
+  anova_test(dv = benefit, wid = PID, within = person) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m1b %>% 
+  kbl(booktabs = T)
+```
+
+### One-sample t-tests
+
+**Buyers in Taboo Condition:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_t <- for_m1 %>% 
+  filter(person == "buyer") %>% 
+  filter(cond == "taboo")
+
+t_apa(apa::t_test(for_t$benefit,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+**Buyers in Standard Condition:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_t <- for_m1 %>% 
+  filter(person == "buyer") %>% 
+  filter(cond == "standard")
+
+t_apa(apa::t_test(for_t$benefit,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+**Sellers in Taboo Condition:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_t <- for_m1 %>% 
+  filter(person == "seller") %>% 
+  filter(cond == "taboo")
+
+t_apa(apa::t_test(for_t$benefit,alternative = "less",mu = 0),
+      format = "rmarkdown")
+```
+
+**Sellers in Standard Condition:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_t <- for_m1 %>% 
+  filter(person == "seller") %>% 
+  filter(cond == "standard")
+
+t_apa(apa::t_test(for_t$benefit,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```

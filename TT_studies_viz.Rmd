@@ -1,0 +1,99 @@
+---
+title: "TT_studies_viz"
+author: "Dean Baltiansky"
+date: "2022-08-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(jtools)
+library(extrafont)
+loadfonts()
+library(tidyverse)
+
+#read in preprocessed data frames
+df_s1a <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s1a.csv")
+df_s1b <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s1b.csv")
+```
+
+# Figure 1
+
+## Prep
+
+```{r}
+for_f1 <- df_s1a %>% 
+  select(cond:benefit_B) %>% 
+  mutate(study = "Study 1A") %>% 
+  bind_rows(df_s1b %>% 
+              select(cond:benefit_B) %>% 
+              mutate(study = "Study 1B")) %>% 
+  mutate(cond = ifelse(cond == 1,"Taboo Exchanges","Standard Exchanges")) %>% 
+  rename(Buyers = benefit_A,
+         Sellers = benefit_B) %>% 
+  pivot_longer(-c(cond,study),
+               names_to = "person",
+               values_to = "Benefit")
+```
+
+## Plot
+
+```{r}
+jpeg("MS_fig1.jpeg", width = 900, height = 450)
+for_f1 %>% 
+  ggplot(aes(x = person,y = Benefit,color = cond,fill = cond,shape = cond)) +
+  scale_color_manual(values = c("grey20",
+                                "grey20")) +
+  scale_fill_manual(values = c("grey90",
+                                "grey20")) +
+  geom_violinhalf(position = position_nudge(0.15),
+                  #fill = "gray23",
+                  alpha = 0.4,
+                  size = 2) +
+  geom_point(alpha = 0.3,
+             size = 2,
+             position = position_jitter(0.15)) +
+  stat_summary(fun.data = "mean_cl_boot",
+               size = 0.8,
+               geom = "linerange",
+               color = "grey50",
+               position = position_nudge(x = 0.3)) +
+  stat_summary(fun = "mean",
+               size = 0.8,
+               position = position_nudge(x = 0.3)) +
+  scale_x_discrete(expand = c(0.2,0.2)) +
+  scale_y_continuous(breaks = seq(-3,3,1)) +
+  expand_limits(x = 1) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line.y = element_blank(),
+        axis.text.x = element_text(color = "black",
+                                   face = "bold",
+                                   size = 18,
+                                   family = "Times New Roman"),
+        axis.text.y = element_text(color = "black",
+                                   face = "bold",
+                                   size = 18,
+                                   family = "Times New Roman"),
+        axis.title.y = element_text(color = "black",
+                                   face = "bold",
+                                   size = 18,
+                                   family = "Times New Roman"),
+        axis.title.x = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(color = "black",
+                                   face = "bold",
+                                   size = 18,
+                                   family = "Times New Roman"),
+        legend.position = "bottom",
+        legend.key.size = unit(1.2,'cm')) +
+  facet_wrap(~study) +
+  theme(strip.background = element_rect(fill = "grey90"),
+        strip.text = element_text(color = "black",
+                                   face = "bold",
+                                   size = 18,
+                                   family = "Times New Roman"))
+```
+
+
