@@ -26,6 +26,7 @@ library(tidyverse)
 #read in preprocessed data frames
 df_s1a <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s1a.csv")
 df_s1b <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s1b.csv")
+df_s2 <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s2.csv")
 
 ```
 
@@ -205,6 +206,88 @@ df_s1b %>%
         axis.title.y = element_blank())
 ```
 
+## Study 2
+
+### N
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s2 %>% 
+  summarise(N = n()) %>% 
+  kbl(booktabs = T)
+```
+
+### Gender
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s2 %>% 
+  group_by(gender) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  mutate(gender = replace_na(gender,"other")) %>% 
+  kbl(booktabs = T)
+```
+
+### Race
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s2 %>% 
+  group_by(race) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  mutate(race = replace_na(race,"other")) %>% 
+  kbl(booktabs = T)
+```
+
+### Education
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s2 %>% 
+  mutate(edu = factor(edu,c("GED",
+                            "2yearColl",
+                            "4yearColl",
+                            "MA",
+                            "PHD"))) %>% 
+  group_by(edu) %>% 
+  summarise(N = n()) %>% 
+  mutate(perc = 100*round(N/sum(N),4)) %>% 
+  ungroup() %>% 
+  filter(!is.na(edu)) %>% 
+  kbl(booktabs = T)
+```
+
+### Income
+
+```{r,fig.align='left',fig.dim=c(5,2),echo=F,message=F}
+df_s2 %>% 
+  mutate(income = factor(income,c("$0-$20,000",
+                                  "$20,001-$40,000",
+                                  "$40,001-$60,000",
+                                  "$60,001-$80,000",
+                                  "$80,001-$100,000",
+                                  "$100,001-$120,000",
+                                  "$120,001-$140,000",
+                                  "$140,001-$160,000",
+                                  "$160,001-$180,000",
+                                  "$180,001-$200,000",
+                                  "Over $200,000"))) %>% 
+  filter(!is.na(income)) %>% 
+  ggplot(aes(x = income)) +
+  geom_bar() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(color = "grey66"),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(color = "black",
+                                   face = "bold",
+                                   angle = 320),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
+```
+
 # Cronbach's alpha
 
 ## Study 1A
@@ -273,6 +356,56 @@ for_alpha <- df_s1b %>%
          benefit_B_4 = ifelse(cond == 1,prod_benefit_B,bugs_benefit_B),
          benefit_B_5 = ifelse(cond == 1,appt_benefit_B,cncrt_benefit_B)) %>% 
   select(benefit_B_1:benefit_B_5) %>% 
+  psych::alpha()
+
+for_alpha$total %>% 
+  kbl(booktabs = T)
+```
+
+## Study 2
+
+### Buyers Short-term
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_alpha <- df_s2 %>% 
+  select(ends_with("_short_A")) %>% 
+  select(-benefit_short_A) %>% 
+  psych::alpha()
+
+for_alpha$total %>% 
+  kbl(booktabs = T)
+```
+
+### Buyers Long-term
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_alpha <- df_s2 %>% 
+  select(ends_with("_long_A")) %>% 
+  select(-benefit_long_A) %>% 
+  psych::alpha()
+
+for_alpha$total %>% 
+  kbl(booktabs = T)
+```
+
+### Sellers Short-term
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_alpha <- df_s2 %>% 
+  select(ends_with("_short_B")) %>% 
+  select(-benefit_short_B) %>% 
+  psych::alpha()
+
+for_alpha$total %>% 
+  kbl(booktabs = T)
+```
+
+### Sellers Long-term
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+for_alpha <- df_s2 %>% 
+  select(ends_with("_long_B")) %>% 
+  select(-benefit_long_B) %>% 
   psych::alpha()
 
 for_alpha$total %>% 
@@ -486,5 +619,114 @@ for_t <- for_m1 %>%
   filter(cond == "standard")
 
 t_apa(apa::t_test(for_t$benefit,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+## Study 2
+
+### Descriptives
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s2_long <- df_s2 %>% 
+  select(PID:benefit_long_B) %>% 
+  pivot_longer(-PID,
+               names_to = "names",
+               values_to = "benefit") %>% 
+  separate(names,into = c("temp","timeframe","person"),sep = "_") %>% 
+  mutate(person = ifelse(person == "A","buyer","seller")) %>% 
+  select(-temp)
+
+```
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s2_long %>% 
+  group_by(person,timeframe) %>% 
+  summarise(benefit_m = mean(benefit),
+            benefit_sd = sd(benefit)) %>% 
+  kbl(booktabs = T)
+```
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+df_s2 %>% 
+  summarise(benefit_A_m = mean(benefit_A),
+            benefit_A_sd = sd(benefit_A),
+            benefit_B_m = mean(benefit_B),
+            benefit_B_sd = sd(benefit_B)) %>% 
+  kbl(booktabs = T)
+```
+
+### Two-way Repeated Measures ANOVA
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1 <- anova_test(
+  data = df_s2_long, dv = benefit, wid = PID,
+  within = c(person,timeframe)
+  )
+
+get_anova_table(m1) %>% 
+  kbl(booktabs = T)
+```
+
+### Bonferrone-corrected post-hoc comparisons: Party
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1a <- df_s2_long %>%
+  group_by(person) %>%
+  anova_test(dv = benefit, wid = PID, within = timeframe) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m1a %>% 
+  kbl(booktabs = T)
+```
+
+### Bonferrone-corrected post-hoc comparisons: Timeframe
+
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+m1b <- df_s2_long %>%
+  group_by(timeframe) %>%
+  anova_test(dv = benefit, wid = PID, within = person) %>%
+  get_anova_table() %>%
+  adjust_pvalue(method = "bonferroni")
+
+m1b %>% 
+  kbl(booktabs = T)
+```
+
+### One-sample t-tests
+
+**Buyers across timeframes:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+t_apa(apa::t_test(df_s2$benefit_A,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+**Sellers across timeframes:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+t_apa(apa::t_test(df_s2$benefit_B,alternative = "less",mu = 0),
+      format = "rmarkdown")
+```
+
+**Buyers in the short term:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+t_apa(apa::t_test(df_s2$benefit_short_A,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+**Buyers in the long term:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+t_apa(apa::t_test(df_s2$benefit_long_A,alternative = "greater",mu = 0),
+      format = "rmarkdown")
+```
+
+**Sellers in the short term:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+t_apa(apa::t_test(df_s2$benefit_short_B,alternative = "less",mu = 0),
+      format = "rmarkdown")
+```
+
+**Sellers in the long term:** 
+```{r,results='asis',echo=FALSE,warning=FALSE,message=FALSE}
+t_apa(apa::t_test(df_s2$benefit_long_B,alternative = "less",mu = 0),
       format = "rmarkdown")
 ```
