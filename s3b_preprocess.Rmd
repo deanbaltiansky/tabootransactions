@@ -1,0 +1,166 @@
+---
+title: "tabooTransactions_s3b_preprocess"
+author: "Dean"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#load packages
+library(tidyverse)
+
+#read in de-identified csv file
+df_s3b_raw <- read.csv("~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s3b_raw.csv")
+```
+
+remove ineligible participants
+
+```{r}
+#keep only those who finished
+df_s3b <- df_s3b_raw %>% 
+  filter(Finished == 1) %>% 
+  filter(Progress == 100)
+```
+
+Put NA's where necessary
+
+```{r}
+df_s3b <- df_s3b %>% 
+  mutate(race = ifelse(race == "Click to write Choice 7",NA,race),
+         income = ifelse(income == "Prefer not to answer",NA,income))
+```
+
+define income and edu as factors
+
+```{r}
+df_s3b <- df_s3b %>% 
+  mutate(income = factor(income,c("$0-$20,000",
+                                  "$20,001-$40,000",
+                                  "$40,001-$60,000",
+                                  "$60,001-$80,000",
+                                  "$80,001-$100,000",
+                                  "$100,001-$120,000",
+                                  "$120,001-$140,000",
+                                  "$140,001-$160,000",
+                                  "$160,001-$180,000",
+                                  "$180,001-$200,000",
+                                  "Over $200,000")),
+         edu = factor(edu,c("GED",
+                            "2yearColl",
+                            "4yearColl",
+                            "MA",
+                            "PHD")))
+```
+
+when more than one race -> change to multiracial
+
+```{r}
+df_s3b <- df_s3b %>% 
+  separate(race,into = c("race1","race2","race3","race4"),sep = ",") %>% 
+  mutate(race = ifelse(is.na(race2),race1,"multiracial")) %>% 
+  select(-c(race1,race2,race3,race4))
+```
+
+fix age
+
+```{r}
+df_s3b <- df_s3b %>%
+  mutate(yob = age_1 + 1922,
+         age = 2022 - yob)
+```
+
+
+create person benefit scores
+
+```{r}
+df_s3b <- df_s3b %>% 
+  rowwise() %>% 
+  mutate(taboo_benefit_A = mean(c(phone_benefit_A,
+                                  kdny_benefit_A,
+                                  chem_benefit_A,
+                                  prod_benefit_A,
+                                  appt_benefit_A)),
+         nontaboo_benefit_A = mean(c(cncrt_benefit_A,
+                                     bugs_benefit_A,
+                                     furn_benefit_A,
+                                     car_benefit_A,
+                                     noisy_benefit_A)),
+         taboo_benefit_B = mean(c(phone_benefit_B,
+                                  kdny_benefit_B,
+                                  chem_benefit_B,
+                                  prod_benefit_B,
+                                  appt_benefit_B)),
+         nontaboo_benefit_B = mean(c(cncrt_benefit_B,
+                                     bugs_benefit_B,
+                                     furn_benefit_B,
+                                     car_benefit_B,
+                                     noisy_benefit_B))) %>% 
+  ungroup() %>% 
+  mutate(benefit_A = ifelse(cond == 1,taboo_benefit_A,
+                            ifelse(cond == 2,nontaboo_benefit_A,NA)),
+         benefit_B = ifelse(cond == 1,taboo_benefit_B,
+                            ifelse(cond == 2,nontaboo_benefit_B,NA)))
+```
+
+create scores for mechanisms
+
+```{r}
+df_s3b <- df_s3b %>% 
+  rowwise() %>% 
+  mutate(int_choice = ifelse(cond == 1,
+                         mean(c(phone_int_choice,
+                                kdny_int_choice,
+                                chem_int_choice,
+                                prod_int_choice,
+                                appt_int_choice)),
+                         mean(c(noisy_int_choice,
+                                car_int_choice,
+                                furn_int_choice,
+                                bugs_int_choice,
+                                cncrt_int_choice))),
+         int_know = ifelse(cond == 1,
+                         mean(c(phone_int_know,
+                                kdny_int_know,
+                                chem_int_know,
+                                prod_int_know,
+                                appt_int_know)),
+                         mean(c(noisy_int_know,
+                                car_int_know,
+                                furn_int_know,
+                                bugs_int_know,
+                                cncrt_int_know))),
+         int_ratio = ifelse(cond == 1,
+                         mean(c(phone_int_ratio,
+                                kdny_int_ratio,
+                                chem_int_ratio,
+                                prod_int_ratio,
+                                appt_int_ratio)),
+                         mean(c(noisy_int_ratio,
+                                car_int_ratio,
+                                furn_int_ratio,
+                                bugs_int_ratio,
+                                cncrt_int_ratio)))) %>% 
+  ungroup()
+```
+
+
+take only relevant vars and order in a way that makes sense
+
+```{r}
+df_s3b <- df_s3b %>% 
+  select(PID,
+         cond,
+         benefit_A:int_ratio,
+         phone_int_choice:cncrt_benefit_B,
+         ideo_gen:ideo_econ,
+         SES,
+         age,
+         gender:race,
+         feedback)
+```
+
+write csv
+
+```{r}
+write.csv(df_s3b,"~/Google Drive/My Drive/taboo transactions/OSF materials/manuscript/data/df_s3b.csv",row.names = F)
+```
+
